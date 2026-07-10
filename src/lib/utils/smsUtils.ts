@@ -49,7 +49,7 @@ export function createUserMessage(text: string): Message {
 export function createWelcomeMessage(): Message {
 	return {
 		id: crypto.randomUUID(),
-		text: '欢迎使用短信模拟器！点击右上方"紧急通知"按钮来模拟接收预警短信，也可以手动输入消息进行发送测试。',
+		text: '欢迎使用短信模拟器！点击手机上方红色按钮模拟接收短信，也可以手动发送消息进行测试。',
 		sender: 'system',
 		timestamp: new Date(),
 		type: 'info'

@@ -7,15 +7,60 @@
 	} from '$lib/utils/smsUtils';
 	import ChatBubble from './ChatBubble.svelte';
 	import MessageInput from './MessageInput.svelte';
+	import PhoneHomeScreen from './PhoneHomeScreen.svelte';
 	import { onMount } from 'svelte';
 
+	// ===== 视图状态 =====
+	let view: 'home' | 'sms' = $state('home');
 	let messages: Message[] = $state([createWelcomeMessage()]);
-	let chatContainer: HTMLDivElement;
+	let unreadCount = $state(0);
+	let notificationBanner: { visible: boolean; message: Message | null } = $state({
+		visible: false,
+		message: null
+	});
+	let autoDismissTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// ===== 共享状态 =====
+	let chatContainer: HTMLDivElement | undefined = $state(undefined);
 	let currentTime = $state('');
 	let batteryLevel = $state(85);
 
-	function addMessage(msg: Message) {
+	// ===== 外部触发：预警短信 =====
+	function handleExternalAlert() {
+		const alert = generateAlertMessage();
+		messages = [...messages, alert];
+		// 只有当前不在短信界面时才增加未读计数和显示通知横幅
+		if (view !== 'sms') {
+			unreadCount += 1;
+			notificationBanner = { visible: true, message: alert };
+		}
+
+		if (autoDismissTimeout) clearTimeout(autoDismissTimeout);
+		autoDismissTimeout = setTimeout(() => {
+			notificationBanner = { visible: false, message: notificationBanner.message };
+		}, 4000);
+	}
+
+	// ===== 导航 =====
+	function handleNavigateToSms() {
+		view = 'sms';
+		unreadCount = 0;
+		notificationBanner = { visible: false, message: null };
+		if (autoDismissTimeout) {
+			clearTimeout(autoDismissTimeout);
+			autoDismissTimeout = null;
+		}
+	}
+
+	function handleNavigateToHome() {
+		view = 'home';
+	}
+
+	// ===== 用户发送消息 =====
+	function handleUserSend(text: string) {
+		const msg = createUserMessage(text);
 		messages = [...messages, msg];
+		scrollToBottom();
 	}
 
 	function scrollToBottom() {
@@ -26,18 +71,7 @@
 		});
 	}
 
-	function handleSendAlert() {
-		const alert = generateAlertMessage();
-		addMessage(alert);
-		scrollToBottom();
-	}
-
-	function handleUserSend(text: string) {
-		const msg = createUserMessage(text);
-		addMessage(msg);
-		scrollToBottom();
-	}
-
+	// ===== 生命周期 =====
 	function updateTime() {
 		const now = new Date();
 		currentTime = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -50,8 +84,9 @@
 	});
 
 	$effect(() => {
-		if (chatContainer) {
-			chatContainer.scrollTop = chatContainer.scrollHeight;
+		// SMS 视图切换时滚动到底部
+		if (view === 'sms' && chatContainer) {
+			scrollToBottom();
 		}
 	});
 
@@ -61,62 +96,135 @@
 		}, 30000);
 		return () => clearInterval(interval);
 	});
+
+	// 清理自动消失计时器
+	$effect(() => {
+		return () => {
+			if (autoDismissTimeout) clearTimeout(autoDismissTimeout);
+		};
+	});
 </script>
 
-<div class="phone-outer">
-	<div class="side-btn top-btn"></div>
-	<div class="side-btn vol-up"></div>
-	<div class="side-btn vol-down"></div>
-	<div class="side-btn power-btn"></div>
+<div class="simulator-wrapper">
+	<!-- 外部触发按钮：位于手机上方 -->
+	<button class="external-trigger" onclick={handleExternalAlert}>
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+			<polyline points="22,6 12,13 2,6"></polyline>
+		</svg>
+		<span>模拟接收短信</span>
+	</button>
 
-	<div class="notch-area">
-		<div class="dynamic-island"></div>
-	</div>
+	<!-- 手机外壳 -->
+	<div class="phone-outer">
+		<div class="side-btn top-btn"></div>
+		<div class="side-btn vol-up"></div>
+		<div class="side-btn vol-down"></div>
+		<div class="side-btn power-btn"></div>
 
-	<div class="phone-screen">
-		<div class="status-bar">
-			<span class="time-text">{currentTime || '9:41'}</span>
-			<div class="status-right">
-				<svg class="signal-icon" width="15" height="11" viewBox="0 0 16 12" fill="currentColor">
-					<rect x="0" y="8" width="3" height="4" rx="0.5" />
-					<rect x="4" y="5" width="3" height="7" rx="0.5" />
-					<rect x="8" y="2" width="3" height="10" rx="0.5" />
-					<rect x="12" y="0" width="3" height="12" rx="0.5" />
-				</svg>
-				<svg class="wifi-icon" width="14" height="11" viewBox="0 0 15 12" fill="none" stroke="currentColor" stroke-width="1.5">
-					<path d="M7.5 10.5a.75.75 0 0 1 0 1.5" stroke-linecap="round" />
-					<path d="M5.2 8.4a3.25 3.25 0 0 1 4.6 0" />
-					<path d="M2.8 6a6.63 6.63 0 0 1 9.4 0" />
-					<path d="M0.4 3.6a10 10 0 0 1 14.2 0" />
-				</svg>
-				<svg class="battery-icon" width="23" height="11" viewBox="0 0 24 12" fill="none">
-					<rect x="0" y="0" width="21" height="12" rx="2.5" stroke="currentColor" stroke-width="1" />
-					<rect x="1.5" y="1.5" width="{Math.round(batteryLevel * 0.18)}" height="9" rx="1" fill="currentColor" opacity="0.8" />
-					<rect x="21.5" y="3.5" width="2" height="5" rx="1" fill="currentColor" opacity="0.6" />
-				</svg>
+		<div class="notch-area">
+			<div class="dynamic-island"></div>
+		</div>
+
+		<div class="phone-screen">
+			<!-- 状态栏 -->
+			<div class="status-bar">
+				<span class="time-text">{currentTime || '9:41'}</span>
+				<div class="status-right">
+					<svg class="signal-icon" width="15" height="11" viewBox="0 0 16 12" fill="currentColor">
+						<rect x="0" y="8" width="3" height="4" rx="0.5" />
+						<rect x="4" y="5" width="3" height="7" rx="0.5" />
+						<rect x="8" y="2" width="3" height="10" rx="0.5" />
+						<rect x="12" y="0" width="3" height="12" rx="0.5" />
+					</svg>
+					<svg class="wifi-icon" width="14" height="11" viewBox="0 0 15 12" fill="none" stroke="currentColor" stroke-width="1.5">
+						<path d="M7.5 10.5a.75.75 0 0 1 0 1.5" stroke-linecap="round" />
+						<path d="M5.2 8.4a3.25 3.25 0 0 1 4.6 0" />
+						<path d="M2.8 6a6.63 6.63 0 0 1 9.4 0" />
+						<path d="M0.4 3.6a10 10 0 0 1 14.2 0" />
+					</svg>
+					<svg class="battery-icon" width="23" height="11" viewBox="0 0 24 12" fill="none">
+						<rect x="0" y="0" width="21" height="12" rx="2.5" stroke="currentColor" stroke-width="1" />
+						<rect x="1.5" y="1.5" width="{Math.round(batteryLevel * 0.18)}" height="9" rx="1" fill="currentColor" opacity="0.8" />
+						<rect x="21.5" y="3.5" width="2" height="5" rx="1" fill="currentColor" opacity="0.6" />
+					</svg>
+				</div>
 			</div>
+
+			{#if view === 'home'}
+				<!-- 主屏幕 -->
+				<PhoneHomeScreen
+					{notificationBanner}
+					{unreadCount}
+					{currentTime}
+					onNotificationClick={handleNavigateToSms}
+					onSmsIconClick={handleNavigateToSms}
+				/>
+			{:else}
+				<!-- SMS 短信详情 -->
+				<div class="title-bar">
+					<button class="back-btn" onclick={handleNavigateToHome} aria-label="返回主屏幕">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="15 18 9 12 15 6"></polyline>
+						</svg>
+						<span>返回</span>
+					</button>
+					<span class="title-text">短信</span>
+					<div class="title-spacer"></div>
+				</div>
+
+				<div bind:this={chatContainer} class="chat-area">
+					{#each messages as msg (msg.id)}
+						<ChatBubble message={msg} />
+					{/each}
+				</div>
+
+				<MessageInput onSend={handleUserSend} />
+			{/if}
 		</div>
 
-		<div class="title-bar">
-			<span class="title-text">短信</span>
-			<button class="alert-btn" onclick={handleSendAlert}>紧急通知</button>
+		<div class="home-bar">
+			<div class="home-indicator"></div>
 		</div>
-
-		<div bind:this={chatContainer} class="chat-area">
-			{#each messages as msg (msg.id)}
-				<ChatBubble message={msg} />
-			{/each}
-		</div>
-
-		<MessageInput onSend={handleUserSend} />
-	</div>
-
-	<div class="home-bar">
-		<div class="home-indicator"></div>
 	</div>
 </div>
 
 <style>
+	/* ===== 外层容器 ===== */
+	.simulator-wrapper {
+		margin: 0 auto;
+	}
+
+	/* ===== 外部触发按钮 ===== */
+	.external-trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 1.5rem;
+		margin: 0 auto 0.75rem;
+		background: #DB0011;
+		color: #fff;
+		border: none;
+		border-radius: 999px;
+		font-size: 0.875rem;
+		font-weight: 600;
+		cursor: pointer;
+		box-shadow: 0 4px 14px rgba(219, 0, 17, 0.35);
+		transition: all 0.2s;
+		width: 100%;
+		justify-content: center;
+	}
+	.external-trigger:hover {
+		background: #b8000e;
+		box-shadow: 0 6px 20px rgba(219, 0, 17, 0.45);
+		transform: translateY(-1px);
+	}
+	.external-trigger:active {
+		transform: translateY(0);
+		box-shadow: 0 2px 8px rgba(219, 0, 17, 0.3);
+	}
+
+	/* ===== 手机外壳 ===== */
 	.phone-outer {
 		width: 390px;
 		height: 700px;
@@ -152,7 +260,7 @@
 		border-radius: 2px 0 0 2px;
 	}
 
-	/* 刘海区域 — 紧贴顶部 */
+	/* 刘海区域 */
 	.notch-area {
 		display: flex;
 		justify-content: center;
@@ -165,7 +273,7 @@
 		border-radius: 999px;
 	}
 
-	/* 屏幕 — 几乎无边距，紧贴外壳内壁 */
+	/* 屏幕 */
 	.phone-screen {
 		flex: 1;
 		background: #f8fafc;
@@ -185,6 +293,8 @@
 		font-weight: 600;
 		color: #334155;
 		background: #f8fafc;
+		position: relative;
+		z-index: 10;
 	}
 	.time-text { width: 40px; text-align: left; }
 	.status-right {
@@ -195,11 +305,12 @@
 	}
 	.signal-icon, .wifi-icon, .battery-icon { display: block; }
 
+	/* ===== SMS 视图：标题栏 ===== */
 	.title-bar {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		padding: 0.25rem 1.125rem;
+		justify-content: space-between;
+		padding: 0.25rem 0.75rem;
 		background: #fff;
 		border-bottom: 1px solid #f1f5f9;
 	}
@@ -208,23 +319,26 @@
 		font-weight: 700;
 		color: #1e293b;
 	}
-	.alert-btn {
-		font-size: 0.6875rem;
-		font-weight: 500;
-		padding: 0.3125rem 0.6875rem;
-		border-radius: 999px;
-		border: 1px solid #f59e0b;
-		background: #fffbeb;
-		color: #b45309;
-		cursor: pointer;
-		transition: all 0.15s;
-		white-space: nowrap;
+	.title-spacer {
+		width: 50px;
 	}
-	.alert-btn:hover {
-		background: #fef3c7;
-		border-color: #d97706;
+	.back-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #007AFF;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.25rem 0;
+	}
+	.back-btn:hover {
+		color: #0056CC;
 	}
 
+	/* ===== SMS 视图：聊天区域 ===== */
 	.chat-area {
 		flex: 1;
 		overflow-y: auto;
@@ -235,7 +349,7 @@
 	.chat-area::-webkit-scrollbar { width: 3px; }
 	.chat-area::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
 
-	/* 底部 — 紧贴外壳 */
+	/* ===== 底部 Home 指示器 ===== */
 	.home-bar {
 		display: flex;
 		justify-content: center;
