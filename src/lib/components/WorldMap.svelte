@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as echarts from 'echarts';
 	import { onMount } from 'svelte';
-	import { HIGHLIGHTED_COUNTRIES, WORLD_GEOJSON_URL, getCountryLabel } from '$lib/utils/mapUtils';
+	import { HIGHLIGHTED_COUNTRIES, WORLD_GEOJSON_URL, getCountryLabel, getCountryColor } from '$lib/utils/mapUtils';
 
 	let container: HTMLDivElement;
 	let chart: echarts.ECharts | undefined;
@@ -28,10 +28,7 @@
 		return allCountryNames.map((name) => ({
 			name,
 			itemStyle: {
-				areaColor:
-					activeSet.has(name)
-						? (HIGHLIGHTED_COUNTRIES.find((c) => c.name === name)?.color ?? '#e8e8e8')
-						: '#e8e8e8'
+				areaColor: activeSet.has(name) ? getCountryColor(name) : '#e8e8e8'
 			}
 		}));
 	}

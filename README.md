@@ -37,9 +37,11 @@ demo/
 ├── tests/
 │   ├── mapUtils.test.ts                  # 地图工具函数测试（13 用例）
 │   ├── smsUtils.test.ts                  # SMS 工具函数测试（16 用例）
+│   ├── page.test.ts                      # 页面路由测试（10 用例）
 │   └── components/
 │       ├── ChatBubble.test.ts            # 聊天气泡组件测试（7 用例）
-│       └── MessageInput.test.ts          # 消息输入组件测试（7 用例）
+│       ├── MessageInput.test.ts          # 消息输入组件测试（7 用例）
+│       └── PhoneSimulator.test.ts        # 手机模拟器测试（22 用例）
 │
 ├── static/
 │   ├── robots.txt
@@ -105,18 +107,24 @@ npm run check          # TypeScript 类型检查
 ## 测试概况
 
 ```bash
-# 4 个测试文件，43 个测试用例
+# 6 个测试文件，75 个测试用例
 
 ✅ tests/mapUtils.test.ts                    13 tests
 ✅ tests/smsUtils.test.ts                    16 tests
+✅ tests/page.test.ts                        10 tests
 ✅ tests/components/ChatBubble.test.ts        7 tests
 ✅ tests/components/MessageInput.test.ts      7 tests
+✅ tests/components/PhoneSimulator.test.ts   22 tests
 
-# 核心模块覆盖率
+# 核心模块覆盖率（整体 87.88%）
 ✅ src/lib/utils/mapUtils.ts      100%
 ✅ src/lib/utils/smsUtils.ts      100%
 ✅ ChatBubble.svelte              100%
 ✅ MessageInput.svelte            100%
+✅ PhoneHomeScreen.svelte         100%
+✅ +page.svelte                   100%
+✅ PhoneSimulator.svelte         96.84%
+🟡 WorldMap.svelte               41.83%
 ```
 
 ## 注意事项
