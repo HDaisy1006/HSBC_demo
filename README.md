@@ -137,5 +137,4 @@ npm run check          # TypeScript 类型检查
 6. **覆盖率报告路径**：覆盖率报告生成在 `static/coverage/` 目录下，开发服务器可直接通过 `/coverage/index.html` 访问，无需额外配置
 
 
-let me test
-let me have a try
+now i will delete
