@@ -135,7 +135,3 @@ npm run check          # TypeScript 类型检查
 4. **适配器**：当前使用 `adapter-auto`，部署到 Cloudflare/Netlify/Vercel 等平台时会自动匹配；如果部署到 Node.js 服务器，请切换为 `adapter-node`
 5. **地图域名**：如果 GeoJSON 数据源 `raw.githubusercontent.com` 不可访问，可以替换 `src/lib/utils/mapUtils.ts` 中的 `WORLD_GEOJSON_URL` 为其他镜像地址
 6. **覆盖率报告路径**：覆盖率报告生成在 `static/coverage/` 目录下，开发服务器可直接通过 `/coverage/index.html` 访问，无需额外配置
-
-
-let me test
-let me have a try
